@@ -11,7 +11,8 @@ class ProductManager {
     }
 
     addProduct(title,description,price,thumbnail,stock){
-        const product = new Product ({title:title, description:description, price:price, thumbnail:thumbnail, stock:stock})
+        const product = new Product (0,title,description,price,thumbnail,0,stock)
+        
         const productByCode = this.products.find((el) => el.code === product.code)
 
         if (this.products.length === 0 && isNaN(product.price) === false && isNaN(product.stock ) === false){
@@ -28,7 +29,7 @@ class ProductManager {
     getProductById(id){
         const productById = this.products.find((product) => product.id === id)
         if (productById !== 'undefined'){
-            return productById
+            console.log(productById)
         }else {
             console.log('Not found.')
         }
@@ -38,12 +39,12 @@ class ProductManager {
 
 class Product {
     constructor(id,title,description,price,thumbnail,code,stock){
-        this.id= id 
+        this.id= 0
        this.title = title
        this.description = description
        this.price = parseFloat(price)
        this.thumbnail= thumbnail
-       this.code = uuidv4()
+       this.code  = uuidv4()
        this.stock = parseInt(stock)
     }
 
@@ -62,3 +63,4 @@ productManager.addProduct('producto de prueba','Este es un producto de prueba',2
 
 productManager.getProductById(1)
 productManager.getProductById(2)
+productManager.getProducts()
