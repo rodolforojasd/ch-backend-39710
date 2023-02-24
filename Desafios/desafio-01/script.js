@@ -24,7 +24,7 @@ class ProductManager {
             product.id = this.products[this.products.length -1].id + 1
             this.products.push(product)
         }else {
-            console.log(`this product ${productByCode} parameters are wrong or its code is repeated, please verify and try again `)
+            console.log(`this product ${productByTitle} parameters types are wrong or it has a duplication, please verify and try again `)
         }
     }
 
