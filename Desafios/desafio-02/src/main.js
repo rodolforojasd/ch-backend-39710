@@ -1,4 +1,5 @@
-import { v4 as uuidv4 } from 'uuid'
+
+import { randomUUID } from 'crypto'
 import fs from "fs/promises"
 
 class ProductManager {
@@ -9,6 +10,7 @@ class ProductManager {
     }
 
     async loadProducts(){
+        debugger
         const json = await fs.readFile(this.path, 'utf-8')
         this.products = JSON.parse(json)
     }
@@ -18,14 +20,14 @@ class ProductManager {
     }
 
     async saveProducts(){
-        const json = JSON.stringify(this.path, null,2)
+        const json = JSON.stringify(this.products, null,2)
         await fs.writeFile(this.path,json)
     }
 
-    async addProduct(title,description,price,thumbnail,stock){
+    async addProduct(title,description,volumeOrWeight,price,thumbnail,stock){
         
-        await this.loadProducts()
-        const product = new Product (0,title,description,price,thumbnail,0,stock)      
+       
+        const product = new Product (title,description,volumeOrWeight,price,thumbnail,stock)      
         const productByCode = this.products.find((el) => el.code === product.code)
         const productByTitle = this.products.find((el) => el.title === product.title)
 
@@ -34,11 +36,13 @@ class ProductManager {
             this.products.push(product)
             await this.saveProducts()
         }else if  (this.products.length > 0 && productByCode === undefined && productByTitle === undefined && isNaN(product.price) === false && isNaN(product.stock ) === false){
+            this.loadProducts()
             product.id = this.products[this.products.length -1].id + 1
+            this.loadProducts()
             this.products.push(product)
             await this.saveProducts()
         }else {
-            console.log(`this product ${productByTitle} parameters types are wrong or it has a duplication, please verify and try again `)
+            console.log(`this product  parameters types are wrong or it has a duplication, please verify and try again `)
         }
     }
 
@@ -54,121 +58,117 @@ class ProductManager {
         }
     }
 
-    async updateProduct(propertyToChange,valueToUpdate, id,title,code){
-
-        await this.loadProducts()
-        const  findedProductIndex= 0
-        if (id !== undefined && id < this.products.length){
-            findedProductIndex = this.products.findIndex((product) => product.id === id)
-            if (findedProductIndex > -1){
-                this.products[findedProductIndex][propertyToChange] = valueToUpdate
-                await this.saveProducts()
-            }else throw "Product not found"
+    async updateProduct(propertyToChange,valueToUpdate, propertyToSearch, valueToSeach){
+        let products = await this.loadProducts()
+        let findedProductIndex = null
+     
+        if( ["id","title","code"].includes(propertyToSearch) && products.some((product)=>{Object.keys(product).includes(propertyToChange)})){
+            findedProductIndex = products.findIndex((product) => product.propertyToSearch === valueToSeach)
         }else{
-            try{
-                findedProductIndex = this.getProductsByTitleOrCode(title, code)
-                this.products[findedProductIndex][propertyToChange] = valueToUpdate
-                this.getProducts()
-            }catch (error){
-                throw error
-            }try{
-            findedProductIndex = this.getProductsByTitleOrCode(title, code)
-            this.products[findedProductIndex][propertyToChange] = valueToUpdate
+            throw "Invalid inputs"
+        }
+
+        if (findedProductIndex > -1){
+            products[findedProductIndex][propertyToChange] = valueToUpdate
             await this.saveProducts()
-            this.getProducts()
-            }catch (error){
-                throw error
+        }else{
+            throw "Product not found"
+
+        }
+    }
+
+            
+    async getProductByProperty(propertyToSearch, valueToSeach) {
+        let products = await this.loadProducts()
+        let findedProductIndex = null
+        if( ["id","title","code"].includes(propertyToSearch)){
+            findedProductIndex = products.findIndex((product) => product.propertyToSearch === valueToSeach)
+        }else{
+            throw "You are restricted to searches by title, id or code, use filter methods fro other properties"
+        }
+        if (findedProductIndex > -1){
+            return products[findedProductIndex]
+        } else{ throw 'product not found'}    
+    }
+        
+
+    
+
+    async deleteProduct(propertyToSearch, valueToSeach){
+        let findedProduct = getProductByProperty(propertyToSearch, valueToSeach)
+
+        const resetId = ()=>{this.products.map((product)=>{
+           if(product.id > findedProduct.id){
+                product.id = product.id - 1 
+           }
+        })}
+
+        try{
+            if(findedProduct.id === 1){
+                this.products.shift()
+                this.products = resetId()           
+            }           
+            if(findedProduct.id === this.products.length){
+                this.products.pop()
+
+            }else{
+                this.products.splice(this.products[findedProduct.id -1], 1)
+                this.products = resetId()
             }
-        }
-        
-        
+            await this.saveProducts()
+        }catch(error){console.log(error)}
     }
 
-    deleteProduct(title,code){
-      const  findedProduct = {}
-      const findedProductIndex= 0
-      try {
-        findedProductIndex = this.products.findIndex((product) => product.title === title)
-            if(findedProductIndex !== -1 && this.products[findedProductIndex].code === code){
-                this.products.splice(findedProductIndex, 1)
-            }else if (!title){
-                findedProductIndex = this.products.findIndex((product) => product.code === code)
-                if(findedProductIndex !== -1){
-                    this.products.splice(findedProductIndex, 1)
-                }else throw "Product is not in inventory"          
-            }else if (!code){
-                findedProduct = this.products.filter((product) => product.title === title)
-                if(findedProduct.length === 1){
-                    this.products.splice(findedProductIndex, 1)
-                }else return (findedProduct, 'The element has more than one item, try adding the code')
-            }else throw "Product is not in inventory"
-                
-      } catch (error) {
-        return error
-      }
-    }
-
-    getProductsByTitleOrCode(title, code){
-    
-        const  findedProduct = {}
-        const findedProductIndex= 0
-        try {
-            findedProductIndex = this.products.findIndex((product) => product.title === title)
-                if(findedProductIndex !== -1 && this.products[findedProductIndex].code === code){
-                    return findedProductIndex
-                }else if (!title){
-                    findedProductIndex = this.products.findIndex((product) => product.code === code)
-                    if(findedProductIndex !== -1){
-                        return findedProductIndex
-                    }else throw "Product is not in inventory"          
-                }else if (!code){
-                    findedProduct = this.products.filter((product) => product.title === title)
-                    if(findedProduct.length === 1){
-                        return findedProductIndex
-                    }else return (findedProduct, 'The element has more than one item, try adding the code')
-                }else throw "Product is not in inventory"
-                    
-        } catch (error) {
-            return error
-        }
-    }
-
- }
+  }
     
 
 
 
-class Product {
-    constructor(id,title,description,price,thumbnail,code,stock){
-        this.id= 0
+ class Product {
+    constructor(title,description,volumeOrWeight,price,thumbnail,stock,code,id){
        this.title = title
        this.description = description
+       this.volumeOrWeight= volumeOrWeight
        this.price = parseFloat(price)
        this.thumbnail= thumbnail
-       this.code  = uuidv4()
        this.stock = parseInt(stock)
+       this.code  = randomUUID()
+       this.id = 0
     }
 
-  
 }
 
-const productManager = new ProductManager('./static/productos.txt')
+debugger
+const productManager = new ProductManager('./static/productos.json')
+
+productManager.addProduct('Añejo Patrón','Tequila 100% Agave, Hecho en México','750 ml', 6800,'./static/img/products/anejopatron.jpg',25)
+productManager.addProduct('Bombay Shapphire','London Dry Gin, Alc.40%','700ml',4800,'./static/img/products/bombay-saphire.webp',25)
+productManager.addProduct('Chimay Bleu','Peres Trappistes, hecho en Bélgica, Alc. 9%', '300ml', 2400,'./static/img/products/Chimay bleu.jpg',25)
+productManager.addProduct('Cerveza Ciney','Cerveza Belga Blonde, Alc.10%','330ml',2420,'./static/img/products/ciney-blonde.jpg',25)
+productManager.addProduct('Lindemans Kriek Cherry','Cerveza Lambic, sabor cereza, Hecha en Bélgica','355ml',2600,'./static/img/products/Lindemans_Kriek_BottleGlass_website_2022-1.png',25)
+productManager.addProduct('Delirium Tremens Blonde','Cerveza Rubia, Hecha en Bélgica, Alc. 8,5%','330ml',2400,'./static/img/products/delirium-tremens-blonde.jpg',25)
+productManager.addProduct('El Profeta','Ginebra, Industria Argentina, Alc. 40%','750 ml',2400,'./static/img/products/ginebra-el-profeta-750-ml.jpg',25)
+productManager.addProduct('Luca Old Vine Malbec','Uco Valley ','750 ml',3100,'./static/img/products/luca-malbec.png',25)
+productManager.addProduct('Zarapaca XO','Gran Reserva Especial, Solera, Hecho en Guatamala','750 ml',7800,'./static/img/products/ron-zaracapa-xo.webp',25)
+productManager.addProduct('Rutini Malbec','Mendoza, alc. 18% ','750 ml',2790,'./static/img/products/rutini-malbec-2021.png',25)
+productManager.addProduct(' Santa Teresa 1796','Ron Venezolano Extra Añeejo, Alc.40%','750 ml',7000,'./static/img/products/santa-teresa-1796.jpg',25)
+productManager.addProduct('El Enemigo, Malbec','Mendoza. Anio 2021','750 ml',3560,'./static/img/products/vino-el-enemigo-malbec-botella-750ml-a582a8a18e.webp',25)
 
 productManager.getProducts()
 
-productManager.addProduct('producto de prueba','Este es un producto de prueba',200,'Sin imagen',25)
+// productManager.addProduct('producto de prueba','Este es un producto de prueba',200,'Sin imagen',25)
 
 debugger
-productManager.getProducts()
+console.log(productManager.getProducts())
 
 
-productManager.addProduct('producto de prueba','Este es un producto de prueba',200,'Sin imagen',25)
+// productManager.addProduct('producto de prueba','Este es un producto de prueba',200,'Sin imagen',25)
 
-productManager.getProductById(1)
+// productManager.getProductById(1)
 
-productManager.getProductById(2)
+// productManager.getProductById(2)
 
-productManager.updateProduct('price',35,1)
+// productManager.updateProduct('price',35,1)
 
-debugger
-productManager.getProductById(1)
+// debugger
+// productManager.getProductById(1)
